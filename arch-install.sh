@@ -138,6 +138,9 @@ main() {
     install_base_system
     generate_fstab
 
+    UUID_CRYPT=$(blkid -s UUID -o value "$CRYPT_PART")
+    ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
+
     # Create minimal user + root config so post-install can run
     arch-chroot /mnt /bin/bash -c "
         ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
@@ -151,7 +154,24 @@ main() {
         useradd -m -G wheel,audio,video,optical,storage -s /bin/zsh \"$USERNAME\"
         echo \"$USERNAME:$PASSWORD\" | chpasswd
         sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+        systemctl enable NetworkManager
         bootctl install
+
+        # Create boot entry
+        cat > /boot/loader/entries/arch.conf << EOL
+        title   Arch Linux
+        linux   /vmlinuz-linux-zen
+        initrd  /initramfs-linux-zen.img
+        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw
+        EOL
+
+        # Configure boot loader
+        cat > /boot/loader/loader.conf << EOL
+        default arch
+        timeout 3
+        console-mode max
+        editor  no
+        EOL
     "
 
     download_post_install_script
