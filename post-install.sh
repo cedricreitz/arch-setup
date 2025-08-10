@@ -16,11 +16,7 @@ is_aur_package_installed() {
     sudo -u "$SUDO_USER" yay -Qi "$1" &>/dev/null 2>&1
 }
 
-# Helper function to check if systemd service exists and is enabled
-is_service_enabled() {
-    local service="$1"
-    systemctl is-enabled "$service" &>/dev/null
-}
+
 
 # Helper function to check if directory exists and is not empty
 dir_exists_and_not_empty() {
@@ -158,7 +154,6 @@ if [[ ! -f "$autologin_file" ]]; then
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $SUDO_USER --noclear %I \$TERM
 AUTOLOGIN
-    systemctl daemon-reload
 else
     echo "[SKIP] Autologin on tty1 is already configured"
 fi
@@ -197,6 +192,7 @@ else
     echo "[SKIP] Hyprland systemd user service already exists"
 fi
 
+
 # ---------------------------
 # 8. Disable unused TTYs
 # ---------------------------
@@ -205,7 +201,7 @@ ttys_to_mask=("getty@tty2.service" "getty@tty3.service" "getty@tty4.service" "ge
 ttys_to_disable=()
 
 for tty in "${ttys_to_mask[@]}"; do
-    if is_service_enabled "$tty"; then
+    if systemctl is-enabled "$tty" &>/dev/null; then
         ttys_to_disable+=("$tty")
     fi
 done
@@ -217,86 +213,14 @@ else
     echo "[SKIP] Unused TTYs are already disabled"
 fi
 
-# ---------------------------
-# 9. Enable lingering and create user service setup script
-# ---------------------------
-echo "[INFO] Setting up user services..."
-
-# Enable lingering for the user
-if ! loginctl show-user "$SUDO_USER" -p Linger 2>/dev/null | grep -q "yes"; then
-    echo "[INFO] Enabling lingering for user $SUDO_USER..."
-    loginctl enable-linger "$SUDO_USER"
-else
-    echo "[SKIP] Lingering already enabled for user $SUDO_USER"
-fi
-
-# Create a script that will run on first login to enable user services
-setup_script="/home/$SUDO_USER/.setup-user-services.sh"
-if [[ ! -f "$setup_script.done" ]]; then
-    echo "[INFO] Creating user service setup script..."
-    cat << 'USERSETUP' > "$setup_script"
-#!/bin/bash
-# This script runs once to set up user services
-
-# Function to enable and start service
-setup_service() {
-    local service="$1"
-    echo "Setting up user service: $service"
-    
-    # Check if service file exists
-    if systemctl --user list-unit-files "$service" &>/dev/null; then
-        # Enable the service
-        if ! systemctl --user is-enabled "$service" &>/dev/null; then
-            systemctl --user enable "$service"
-            echo "Enabled $service"
-        else
-            echo "$service already enabled"
-        fi
-        
-        # Start the service if not running
-        if ! systemctl --user is-active "$service" &>/dev/null; then
-            systemctl --user start "$service" && echo "Started $service" || echo "Failed to start $service"
-        else
-            echo "$service already running"
-        fi
-    else
-        echo "Service $service not found"
-    fi
-}
-
-# Set up services
-setup_service "pipewire.service"
-setup_service "wireplumber.service" 
-setup_service "hyprland.service"
-
-# Mark as completed
-touch ~/.setup-user-services.sh.done
-echo "User services setup completed"
-USERSETUP
-    
-    chown "$SUDO_USER:$SUDO_USER" "$setup_script"
-    chmod +x "$setup_script"
-    
-    # Add to .zshrc to run once on login
-    if ! grep -q "setup-user-services.sh" "/home/$SUDO_USER/.zshrc"; then
-        echo "" >> "/home/$SUDO_USER/.zshrc"
-        echo "# Run user services setup once" >> "/home/$SUDO_USER/.zshrc"
-        echo "if [[ -f ~/.setup-user-services.sh && ! -f ~/.setup-user-services.sh.done ]]; then" >> "/home/$SUDO_USER/.zshrc"
-        echo "    ~/.setup-user-services.sh" >> "/home/$SUDO_USER/.zshrc"
-        echo "fi" >> "/home/$SUDO_USER/.zshrc"
-        chown "$SUDO_USER:$SUDO_USER" "/home/$SUDO_USER/.zshrc"
-    fi
-else
-    echo "[SKIP] User services already set up"
-fi
 
 # ---------------------------
-# 10. Copy user configs from GitHub
+# 9. Copy user configs from GitHub
 # ---------------------------
 config_dir="/home/$SUDO_USER/.config"
 temp_repo_dir="/home/$SUDO_USER/arch-auto-setup"
 
-# Check if we need to update configs
+# Check if we need to update configs (always update if repo doesn't exist or if it's been a while)
 should_update_configs=false
 
 if [[ ! -d "$config_dir" ]] || [[ ! dir_exists_and_not_empty "$config_dir" ]]; then
@@ -306,10 +230,11 @@ elif [[ ! -f "$config_dir/.last_config_update" ]]; then
     should_update_configs=true
     echo "[INFO] No config update timestamp found, will update configs"
 else
-    # Check if it's been more than a day since last update
+    # Check if it's been more than a day since last update (optional)
     last_update=$(stat -c %Y "$config_dir/.last_config_update" 2>/dev/null || echo 0)
     current_time=$(date +%s)
     time_diff=$((current_time - last_update))
+    # Update if more than 24 hours (86400 seconds) - you can adjust this
     if [[ $time_diff -gt 86400 ]]; then
         should_update_configs=true
         echo "[INFO] Configs are older than 24 hours, will update"
@@ -344,25 +269,4 @@ else
     echo "[SKIP] Hyprland configs are up to date"
 fi
 
-# ---------------------------
-# 11. Create alternative startup method in .zprofile
-# ---------------------------
-zprofile_file="/home/$SUDO_USER/.zprofile"
-if [[ ! -f "$zprofile_file" ]]; then
-    echo "[INFO] Creating .zprofile for Hyprland auto-start..."
-    cat << 'ZPROFILE' > "$zprofile_file"
-# Auto-start Hyprland on TTY1
-if [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]]; then
-    exec Hyprland
-fi
-ZPROFILE
-    chown "$SUDO_USER:$SUDO_USER" "$zprofile_file"
-else
-    echo "[SKIP] .zprofile already exists"
-fi
-
 echo "[SUCCESS] Post-install setup completed!"
-echo "[INFO] The system is now configured. After reboot/login:"
-echo "       - Hyprland will start automatically on TTY1"
-echo "       - User services will be set up on first login"
-echo "       - All configurations are in place"
