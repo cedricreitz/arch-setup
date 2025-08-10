@@ -104,12 +104,21 @@ generate_fstab() {
 download_post_install_script() {
     local script_url="https://raw.githubusercontent.com/cedricreitz/arch-setup/refs/heads/main/post-install.sh"
     print_status "Downloading post-install script..."
+    mkdir -p "/mnt/home/$USERNAME"
     curl -fsSL "$script_url" -o "/mnt/home/$USERNAME/post-install.sh"
-    chmod +x "/mnt/home/$USERNAME/post-install.sh"
-    chown "$USERNAME:$USERNAME" "/mnt/home/$USERNAME/post-install.sh"
+    arch-chroot /mnt chown "$USERNAME:$USERNAME" "/home/$USERNAME/post-install.sh"
+    arch-chroot /mnt chmod +x "/home/$USERNAME/post-install.sh"
 }
 
+
 main() {
+    clear
+    echo "========================================="
+    echo "    Arch Linux Installation Script"
+    echo "         with Hyprland Setup"
+    echo "========================================="
+    echo
+    
     check_root
     check_internet
     update_clock
