@@ -19,60 +19,7 @@ is_aur_package_installed() {
 # Helper function to check if systemd service exists and is enabled
 is_service_enabled() {
     local service="$1"
-    local user_service="$2"
-    
-    if [[ "$user_service" == "true" ]]; then
-        # Check if user service exists and is enabled
-        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$SUDO_USER")" \
-            systemctl --user is-enabled "$service" &>/dev/null
-    else
-        systemctl is-enabled "$service" &>/dev/null
-    fi
-}
-
-# Helper function to enable user service safely
-enable_user_service() {
-    local service="$1"
-    local user_uid=$(id -u "$SUDO_USER")
-    
-    echo "[INFO] Enabling user service: $service"
-    
-    # Ensure XDG_RUNTIME_DIR exists and has correct permissions
-    if [[ ! -d "/run/user/$user_uid" ]]; then
-        mkdir -p "/run/user/$user_uid"
-        chown "$SUDO_USER:$SUDO_USER" "/run/user/$user_uid"
-        chmod 700 "/run/user/$user_uid"
-    fi
-    
-    # Enable the service
-    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
-        systemctl --user enable "$service"
-}
-
-# Helper function to start user service safely
-start_user_service() {
-    local service="$1"
-    local user_uid=$(id -u "$SUDO_USER")
-    
-    echo "[INFO] Starting user service: $service"
-    
-    # Only try to start if we can connect to user bus
-    if sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
-        systemctl --user status &>/dev/null; then
-        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
-            systemctl --user start "$service" || true
-    else
-        echo "[WARN] Cannot start $service - no active user session. Service will start on next login."
-    fi
-}
-
-# Helper function to check if user service is active
-is_user_service_active() {
-    local service="$1"
-    local user_uid=$(id -u "$SUDO_USER")
-    
-    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
-        systemctl --user is-active "$service" &>/dev/null
+    systemctl is-enabled "$service" &>/dev/null
 }
 
 # Helper function to check if directory exists and is not empty
@@ -211,7 +158,6 @@ if [[ ! -f "$autologin_file" ]]; then
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $SUDO_USER --noclear %I \$TERM
 AUTOLOGIN
-    # Reload systemd to pick up the new override
     systemctl daemon-reload
 else
     echo "[SKIP] Autologin on tty1 is already configured"
@@ -259,7 +205,7 @@ ttys_to_mask=("getty@tty2.service" "getty@tty3.service" "getty@tty4.service" "ge
 ttys_to_disable=()
 
 for tty in "${ttys_to_mask[@]}"; do
-    if systemctl is-enabled "$tty" &>/dev/null; then
+    if is_service_enabled "$tty"; then
         ttys_to_disable+=("$tty")
     fi
 done
@@ -272,60 +218,77 @@ else
 fi
 
 # ---------------------------
-# 9. Enable essential services
+# 9. Enable lingering and create user service setup script
 # ---------------------------
 echo "[INFO] Setting up user services..."
 
-# Ensure user runtime directory exists
-user_uid=$(id -u "$SUDO_USER")
-user_runtime_dir="/run/user/$user_uid"
-
-if [[ ! -d "$user_runtime_dir" ]]; then
-    echo "[INFO] Creating user runtime directory..."
-    mkdir -p "$user_runtime_dir"
-    chown "$SUDO_USER:$SUDO_USER" "$user_runtime_dir"
-    chmod 700 "$user_runtime_dir"
-fi
-
-# Enable lingering for the user (allows user services to run without login)
-if ! loginctl show-user "$SUDO_USER" -p Linger | grep -q "yes"; then
+# Enable lingering for the user
+if ! loginctl show-user "$SUDO_USER" -p Linger 2>/dev/null | grep -q "yes"; then
     echo "[INFO] Enabling lingering for user $SUDO_USER..."
     loginctl enable-linger "$SUDO_USER"
 else
     echo "[SKIP] Lingering already enabled for user $SUDO_USER"
 fi
 
-# Give a moment for lingering to take effect
-sleep 2
+# Create a script that will run on first login to enable user services
+setup_script="/home/$SUDO_USER/.setup-user-services.sh"
+if [[ ! -f "$setup_script.done" ]]; then
+    echo "[INFO] Creating user service setup script..."
+    cat << 'USERSETUP' > "$setup_script"
+#!/bin/bash
+# This script runs once to set up user services
 
-# Handle user services
-user_services=("pipewire.service" "wireplumber.service" "hyprland.service")
-
-for service in "${user_services[@]}"; do
-    service_enabled=false
+# Function to enable and start service
+setup_service() {
+    local service="$1"
+    echo "Setting up user service: $service"
     
-    # Check if service is enabled
-    if is_service_enabled "$service" "true"; then
-        echo "[SKIP] User service $service is already enabled"
-        service_enabled=true
+    # Check if service file exists
+    if systemctl --user list-unit-files "$service" &>/dev/null; then
+        # Enable the service
+        if ! systemctl --user is-enabled "$service" &>/dev/null; then
+            systemctl --user enable "$service"
+            echo "Enabled $service"
+        else
+            echo "$service already enabled"
+        fi
+        
+        # Start the service if not running
+        if ! systemctl --user is-active "$service" &>/dev/null; then
+            systemctl --user start "$service" && echo "Started $service" || echo "Failed to start $service"
+        else
+            echo "$service already running"
+        fi
     else
-        # Try to enable the service
-        if enable_user_service "$service"; then
-            service_enabled=true
-        else
-            echo "[WARN] Failed to enable user service $service"
-        fi
+        echo "Service $service not found"
     fi
+}
+
+# Set up services
+setup_service "pipewire.service"
+setup_service "wireplumber.service" 
+setup_service "hyprland.service"
+
+# Mark as completed
+touch ~/.setup-user-services.sh.done
+echo "User services setup completed"
+USERSETUP
     
-    # Try to start the service if it's enabled and not running
-    if [[ "$service_enabled" == "true" ]]; then
-        if ! is_user_service_active "$service"; then
-            start_user_service "$service"
-        else
-            echo "[SKIP] User service $service is already running"
-        fi
+    chown "$SUDO_USER:$SUDO_USER" "$setup_script"
+    chmod +x "$setup_script"
+    
+    # Add to .zshrc to run once on login
+    if ! grep -q "setup-user-services.sh" "/home/$SUDO_USER/.zshrc"; then
+        echo "" >> "/home/$SUDO_USER/.zshrc"
+        echo "# Run user services setup once" >> "/home/$SUDO_USER/.zshrc"
+        echo "if [[ -f ~/.setup-user-services.sh && ! -f ~/.setup-user-services.sh.done ]]; then" >> "/home/$SUDO_USER/.zshrc"
+        echo "    ~/.setup-user-services.sh" >> "/home/$SUDO_USER/.zshrc"
+        echo "fi" >> "/home/$SUDO_USER/.zshrc"
+        chown "$SUDO_USER:$SUDO_USER" "/home/$SUDO_USER/.zshrc"
     fi
-done
+else
+    echo "[SKIP] User services already set up"
+fi
 
 # ---------------------------
 # 10. Copy user configs from GitHub
@@ -343,11 +306,10 @@ elif [[ ! -f "$config_dir/.last_config_update" ]]; then
     should_update_configs=true
     echo "[INFO] No config update timestamp found, will update configs"
 else
-    # Check if it's been more than a day since last update (optional)
+    # Check if it's been more than a day since last update
     last_update=$(stat -c %Y "$config_dir/.last_config_update" 2>/dev/null || echo 0)
     current_time=$(date +%s)
     time_diff=$((current_time - last_update))
-    # Update if more than 24 hours (86400 seconds)
     if [[ $time_diff -gt 86400 ]]; then
         should_update_configs=true
         echo "[INFO] Configs are older than 24 hours, will update"
@@ -382,5 +344,25 @@ else
     echo "[SKIP] Hyprland configs are up to date"
 fi
 
+# ---------------------------
+# 11. Create alternative startup method in .zprofile
+# ---------------------------
+zprofile_file="/home/$SUDO_USER/.zprofile"
+if [[ ! -f "$zprofile_file" ]]; then
+    echo "[INFO] Creating .zprofile for Hyprland auto-start..."
+    cat << 'ZPROFILE' > "$zprofile_file"
+# Auto-start Hyprland on TTY1
+if [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]]; then
+    exec Hyprland
+fi
+ZPROFILE
+    chown "$SUDO_USER:$SUDO_USER" "$zprofile_file"
+else
+    echo "[SKIP] .zprofile already exists"
+fi
+
 echo "[SUCCESS] Post-install setup completed!"
-echo "[INFO] User services have been enabled. They will be fully active after the next login or reboot."
+echo "[INFO] The system is now configured. After reboot/login:"
+echo "       - Hyprland will start automatically on TTY1"
+echo "       - User services will be set up on first login"
+echo "       - All configurations are in place"
