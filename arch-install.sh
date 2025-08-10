@@ -155,6 +155,10 @@ main() {
         echo \"$USERNAME:$PASSWORD\" | chpasswd
         sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
         systemctl enable NetworkManager
+
+        # Add encrypt hook to mkinitcpio
+        sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+        mkinitcpio -P
         bootctl install
 
         # Create boot entry
