@@ -35,7 +35,14 @@ prompt_password() {
     done
 }
 
-check_root() { [ "$EUID" -ne 0 ] && { print_error "Run as root"; exit 1; }; }
+# Check if running as root
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        print_error "This script must be run as root"
+        exit 1
+    fi
+}
+
 check_internet() { ping -c 1 archlinux.org &>/dev/null || { print_error "No internet"; exit 1; }; }
 update_clock() { timedatectl set-ntp true; }
 
