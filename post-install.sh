@@ -51,7 +51,7 @@ fi
 # 3. Install AUR packages as user
 # ---------------------------
 echo "[INFO] Checking AUR packages..."
-aur_packages=("visual-studio-code-bin" "goxlr-utility-bin" "google-chrome-bin")
+aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome")
 packages_to_install=()
 
 for package in "${aur_packages[@]}"; do
