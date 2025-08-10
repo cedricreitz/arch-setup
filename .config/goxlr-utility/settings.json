@@ -1,0 +1,48 @@
+{
+  "show_tray_icon": true,
+  "selected_locale": null,
+  "tts_enabled": false,
+  "allow_network_access": false,
+  "macos_handle_aggregates": true,
+  "profile_directory": null,
+  "mic_profile_directory": null,
+  "samples_directory": null,
+  "presets_directory": null,
+  "icons_directory": null,
+  "logs_directory": null,
+  "backup_directory": null,
+  "log_level": "Info",
+  "open_ui_on_launch": false,
+  "activate": null,
+  "firmware_source": "Live",
+  "devices": {
+    "S210200603DI7": {
+      "profile": "Dark",
+      "mic_profile": "custom_cedric",
+      "hold_delay": 500,
+      "sampler_pre_buffer": null,
+      "chat_mute_mutes_mic_to_chat": true,
+      "lock_faders": false,
+      "enable_monitor_with_fx": false,
+      "sampler_reset_on_clear": true,
+      "vod_mode": "Routable",
+      "shutdown_commands": [],
+      "sleep_commands": [],
+      "wake_commands": [
+        {
+          "LoadMicProfile": [
+            "custom_cedric",
+            false
+          ]
+        },
+        {
+          "LoadProfile": [
+            "Dark",
+            false
+          ]
+        }
+      ]
+    }
+  },
+  "sample_gain": {}
+}

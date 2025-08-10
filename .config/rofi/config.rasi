@@ -1,0 +1,16 @@
+configuration {
+	font: "JetBrainsMono Nerd Font 12";
+	icon-theme: "Papirus-Dark";
+    show-icons: true;
+    terminal: "kitty";
+    steal-focus: true;
+    drun-display-format: "{icon} {name}";
+    
+    filebrowser {
+        directories-first: true;
+        sorting-method: "name";
+    }
+}
+
+
+@theme "cyberpunk"
