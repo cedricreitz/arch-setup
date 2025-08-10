@@ -22,10 +22,57 @@ is_service_enabled() {
     local user_service="$2"
     
     if [[ "$user_service" == "true" ]]; then
-        sudo -u "$SUDO_USER" systemctl --user is-enabled "$service" &>/dev/null
+        # Check if user service exists and is enabled
+        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$SUDO_USER")" \
+            systemctl --user is-enabled "$service" &>/dev/null
     else
         systemctl is-enabled "$service" &>/dev/null
     fi
+}
+
+# Helper function to enable user service safely
+enable_user_service() {
+    local service="$1"
+    local user_uid=$(id -u "$SUDO_USER")
+    
+    echo "[INFO] Enabling user service: $service"
+    
+    # Ensure XDG_RUNTIME_DIR exists and has correct permissions
+    if [[ ! -d "/run/user/$user_uid" ]]; then
+        mkdir -p "/run/user/$user_uid"
+        chown "$SUDO_USER:$SUDO_USER" "/run/user/$user_uid"
+        chmod 700 "/run/user/$user_uid"
+    fi
+    
+    # Enable the service
+    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
+        systemctl --user enable "$service"
+}
+
+# Helper function to start user service safely
+start_user_service() {
+    local service="$1"
+    local user_uid=$(id -u "$SUDO_USER")
+    
+    echo "[INFO] Starting user service: $service"
+    
+    # Only try to start if we can connect to user bus
+    if sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
+        systemctl --user status &>/dev/null; then
+        sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
+            systemctl --user start "$service" || true
+    else
+        echo "[WARN] Cannot start $service - no active user session. Service will start on next login."
+    fi
+}
+
+# Helper function to check if user service is active
+is_user_service_active() {
+    local service="$1"
+    local user_uid=$(id -u "$SUDO_USER")
+    
+    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$user_uid" \
+        systemctl --user is-active "$service" &>/dev/null
 }
 
 # Helper function to check if directory exists and is not empty
@@ -164,6 +211,8 @@ if [[ ! -f "$autologin_file" ]]; then
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $SUDO_USER --noclear %I \$TERM
 AUTOLOGIN
+    # Reload systemd to pick up the new override
+    systemctl daemon-reload
 else
     echo "[SKIP] Autologin on tty1 is already configured"
 fi
@@ -202,14 +251,6 @@ else
     echo "[SKIP] Hyprland systemd user service already exists"
 fi
 
-# Enable Hyprland service for the user
-if ! is_service_enabled "hyprland.service" "true"; then
-    echo "[INFO] Enabling Hyprland user service..."
-    sudo -u "$SUDO_USER" systemctl --user enable hyprland.service
-else
-    echo "[SKIP] Hyprland service is already enabled"
-fi
-
 # ---------------------------
 # 8. Disable unused TTYs
 # ---------------------------
@@ -233,19 +274,55 @@ fi
 # ---------------------------
 # 9. Enable essential services
 # ---------------------------
-echo "[INFO] Checking essential services..."
+echo "[INFO] Setting up user services..."
+
+# Ensure user runtime directory exists
+user_uid=$(id -u "$SUDO_USER")
+user_runtime_dir="/run/user/$user_uid"
+
+if [[ ! -d "$user_runtime_dir" ]]; then
+    echo "[INFO] Creating user runtime directory..."
+    mkdir -p "$user_runtime_dir"
+    chown "$SUDO_USER:$SUDO_USER" "$user_runtime_dir"
+    chmod 700 "$user_runtime_dir"
+fi
+
+# Enable lingering for the user (allows user services to run without login)
+if ! loginctl show-user "$SUDO_USER" -p Linger | grep -q "yes"; then
+    echo "[INFO] Enabling lingering for user $SUDO_USER..."
+    loginctl enable-linger "$SUDO_USER"
+else
+    echo "[SKIP] Lingering already enabled for user $SUDO_USER"
+fi
+
+# Give a moment for lingering to take effect
+sleep 2
+
+# Handle user services
 user_services=("pipewire.service" "wireplumber.service" "hyprland.service")
 
 for service in "${user_services[@]}"; do
-    if ! is_service_enabled "$service" "true"; then
-        echo "[INFO] Enabling and starting user service: $service"
-        sudo -u "$SUDO_USER" systemctl --user --now enable "$service"
-    else
+    service_enabled=false
+    
+    # Check if service is enabled
+    if is_service_enabled "$service" "true"; then
         echo "[SKIP] User service $service is already enabled"
-        # Still try to start it if it's not running
-        if ! sudo -u "$SUDO_USER" systemctl --user is-active "$service" &>/dev/null; then
-            echo "[INFO] Starting user service: $service"
-            sudo -u "$SUDO_USER" systemctl --user start "$service"
+        service_enabled=true
+    else
+        # Try to enable the service
+        if enable_user_service "$service"; then
+            service_enabled=true
+        else
+            echo "[WARN] Failed to enable user service $service"
+        fi
+    fi
+    
+    # Try to start the service if it's enabled and not running
+    if [[ "$service_enabled" == "true" ]]; then
+        if ! is_user_service_active "$service"; then
+            start_user_service "$service"
+        else
+            echo "[SKIP] User service $service is already running"
         fi
     fi
 done
@@ -256,7 +333,7 @@ done
 config_dir="/home/$SUDO_USER/.config"
 temp_repo_dir="/home/$SUDO_USER/arch-auto-setup"
 
-# Check if we need to update configs (always update if repo doesn't exist or if it's been a while)
+# Check if we need to update configs
 should_update_configs=false
 
 if [[ ! -d "$config_dir" ]] || [[ ! dir_exists_and_not_empty "$config_dir" ]]; then
@@ -270,7 +347,7 @@ else
     last_update=$(stat -c %Y "$config_dir/.last_config_update" 2>/dev/null || echo 0)
     current_time=$(date +%s)
     time_diff=$((current_time - last_update))
-    # Update if more than 24 hours (86400 seconds) - you can adjust this
+    # Update if more than 24 hours (86400 seconds)
     if [[ $time_diff -gt 86400 ]]; then
         should_update_configs=true
         echo "[INFO] Configs are older than 24 hours, will update"
@@ -306,3 +383,4 @@ else
 fi
 
 echo "[SUCCESS] Post-install setup completed!"
+echo "[INFO] User services have been enabled. They will be fully active after the next login or reboot."
