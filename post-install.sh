@@ -220,53 +220,25 @@ fi
 config_dir="/home/$SUDO_USER/.config"
 temp_repo_dir="/home/$SUDO_USER/arch-auto-setup"
 
-# Check if we need to update configs (always update if repo doesn't exist or if it's been a while)
-should_update_configs=false
+echo "[INFO] Downloading/updating Hyprland configs..."
 
-if [[ ! -d "$config_dir" ]] || [[ ! dir_exists_and_not_empty "$config_dir" ]]; then
-    should_update_configs=true
-    echo "[INFO] Config directory is missing or empty, will download configs"
-elif [[ ! -f "$config_dir/.last_config_update" ]]; then
-    should_update_configs=true
-    echo "[INFO] No config update timestamp found, will update configs"
-else
-    # Check if it's been more than a day since last update (optional)
-    last_update=$(stat -c %Y "$config_dir/.last_config_update" 2>/dev/null || echo 0)
-    current_time=$(date +%s)
-    time_diff=$((current_time - last_update))
-    # Update if more than 24 hours (86400 seconds) - you can adjust this
-    if [[ $time_diff -gt 86400 ]]; then
-        should_update_configs=true
-        echo "[INFO] Configs are older than 24 hours, will update"
-    fi
-fi
-
-if [[ "$should_update_configs" == "true" ]]; then
-    echo "[INFO] Downloading/updating Hyprland configs..."
-    
-    # Clean up any existing temp directory
-    if [[ -d "$temp_repo_dir" ]]; then
-        rm -rf "$temp_repo_dir"
-    fi
-    
-    sudo -u "$SUDO_USER" git clone --depth=1 https://github.com/cedricreitz/arch-setup.git "$temp_repo_dir"
-    
-    # Create config directory if it doesn't exist
-    sudo -u "$SUDO_USER" mkdir -p "$config_dir"
-    
-    # Copy configs
-    sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.config/"* "$config_dir/"
-    
-    # Clean up
+# Clean up any existing temp directory
+if [[ -d "$temp_repo_dir" ]]; then
     rm -rf "$temp_repo_dir"
-    
-    # Fix ownership
-    chown -R $SUDO_USER:$SUDO_USER "$config_dir"
-    
-    # Create timestamp file
-    sudo -u "$SUDO_USER" touch "$config_dir/.last_config_update"
-else
-    echo "[SKIP] Hyprland configs are up to date"
 fi
+
+sudo -u "$SUDO_USER" git clone --depth=1 https://github.com/cedricreitz/arch-setup.git "$temp_repo_dir"
+
+# Create config directory if it doesn't exist
+sudo -u "$SUDO_USER" mkdir -p "$config_dir"
+
+# Copy configs
+sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.config/"* "$config_dir/"
+
+# Clean up
+rm -rf "$temp_repo_dir"
+
+# Fix ownership
+chown -R $SUDO_USER:$SUDO_USER "$config_dir"
 
 echo "[SUCCESS] Post-install setup completed!"
