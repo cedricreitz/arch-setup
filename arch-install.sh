@@ -130,7 +130,7 @@ partition_disk() {
     # Set partition variables based on disk type
     if [[ "$disk" == *"nvme"* ]]; then
         EFI_PART="${disk}p1"
-        CRYPT_PART="${disk}2"
+        CRYPT_PART="${disk}p2"
     else
         EFI_PART="${disk}1"
         CRYPT_PART="${disk}2"
@@ -435,8 +435,7 @@ main() {
     prompt_input "Enter keyboard layout" KEYMAP "de-latin1"
     prompt_input "Enter hostname" HOSTNAME "archlinux"
     prompt_input "Enter username" USERNAME "user"
-    prompt_password "Enter root password" ROOT_PASSWORD
-    prompt_password "Enter user password" USER_PASSWORD
+    prompt_password "Enter password" PASSWORD
     
     echo
     read -p "Do you want to install the extended system (Hyprland, AUR packages, etc.)? (yes/no): " INSTALL_EXTENDED
