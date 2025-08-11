@@ -254,6 +254,12 @@ rm -rf "$temp_repo_dir"
 # Fix ownership
 chown -R $SUDO_USER:$SUDO_USER "$config_dir"
 
+sudo -u "$SUDO_USER" git clone https://github.com/vinceliuice/Graphite-gtk-theme.git && \
+cd Graphite-gtk-theme && \
+chmod +x install.sh && \
+./install.sh
+
+
 plymouth-set-default-theme -R loader_2
 
 # set up git

@@ -94,7 +94,7 @@ install_base_system() {
              rofi-wayland thunar nwg-look kitty polkit hyprpolkitagent \
              ttf-jetbrains-mono-nerd pavucontrol playerctl brightnessctl grim slurp \
              wl-clipboard papirus-icon-theme lsd blueman jq fzf \
-             zoxide bat usbutils fprintd cantarell-fonts plymouth
+             zoxide bat usbutils fprintd gtk-engine-murrine cantarell-fonts plymouth
 }
 
 generate_fstab() {
