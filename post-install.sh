@@ -62,7 +62,7 @@ fi
 # 3. Install AUR packages as user
 # ---------------------------
 echo "[INFO] Checking AUR packages..."
-aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome" "1password")
+aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome" "1password" "plymouth-theme-loader-2-git")
 packages_to_install=()
 
 for package in "${aur_packages[@]}"; do
@@ -254,7 +254,7 @@ rm -rf "$temp_repo_dir"
 # Fix ownership
 chown -R $SUDO_USER:$SUDO_USER "$config_dir"
 
-
+plymouth-set-default-theme -R loader_2
 
 # set up git
 prompt_input "Github name" GITHUB_USER

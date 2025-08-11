@@ -94,7 +94,7 @@ install_base_system() {
              rofi-wayland thunar nwg-look kitty polkit hyprpolkitagent \
              ttf-jetbrains-mono-nerd pavucontrol playerctl brightnessctl grim slurp \
              wl-clipboard papirus-icon-theme lsd blueman jq fzf \
-             zoxide bat usbutils fprintd
+             zoxide bat usbutils fprintd cantarell-fonts plymouth
 }
 
 generate_fstab() {
@@ -140,6 +140,7 @@ main() {
 
     UUID_CRYPT=$(blkid -s UUID -o value "$CRYPT_PART")
     ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
+    CATPUCCIN_TTY="vt.default_red=30,243,166,249,137,245,148,186,88,243,166,249,137,245,148,166 vt.default_grn=30,139,227,226,180,194,226,194,91,139,227,226,180,194,226,173 vt.default_blu=46,168,161,175,250,231,213,222,112,168,161,175,250,231,213,200"
 
     # Create minimal user + root config so post-install can run
     arch-chroot /mnt /bin/bash -c "
@@ -166,7 +167,7 @@ main() {
         title   Arch Linux
         linux   /vmlinuz-linux-zen
         initrd  /initramfs-linux-zen.img
-        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash loglevel=3 acpi.debug_level=0
+        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
         EOL
 
         # Configure boot loader
