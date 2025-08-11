@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+prompt_input() {
+    local prompt="$1" var_name="$2" default="$3"
+    if [ -n "$default" ]; then
+        read -p "$prompt [$default]: " input
+        eval "$var_name=\"\${input:-$default}\""
+    else
+        read -p "$prompt: " input
+        eval "$var_name=\"$input\""
+    fi
+}
+
 # Detect SUDO_USER (first home dir found if not explicitly passed)
 SUDO_USER=$(ls /home | head -n 1)
 
@@ -242,5 +253,13 @@ rm -rf "$temp_repo_dir"
 
 # Fix ownership
 chown -R $SUDO_USER:$SUDO_USER "$config_dir"
+
+
+
+# set up git
+prompt_input "Github name" GITHUB_USER
+prompt_input "Github email" GITHUB_EMAIL
+sudo -u "$SUDO_USER" git config --global user.email $GITHUB_EMAIL
+sudo -u "$SUDO_USER" git config --global user.name $GITHUB_USER
 
 echo "[SUCCESS] Post-install setup completed!"
