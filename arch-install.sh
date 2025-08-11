@@ -157,7 +157,7 @@ main() {
         systemctl enable NetworkManager
 
         # Add encrypt hook to mkinitcpio
-        sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+        sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block plymouth encrypt filesystems fsck)/' /etc/mkinitcpio.conf
         mkinitcpio -P
         bootctl install
 
@@ -166,7 +166,7 @@ main() {
         title   Arch Linux
         linux   /vmlinuz-linux-zen
         initrd  /initramfs-linux-zen.img
-        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw
+        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash loglevel=3 acpi.debug_level=0
         EOL
 
         # Configure boot loader
