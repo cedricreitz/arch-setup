@@ -51,7 +51,7 @@ fi
 # 3. Install AUR packages as user
 # ---------------------------
 echo "[INFO] Checking AUR packages..."
-aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome")
+aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome" "1password")
 packages_to_install=()
 
 for package in "${aur_packages[@]}"; do
@@ -121,6 +121,8 @@ alias cat="bat"
 alias cd="z"
 alias cl="clear"
 alias ls="lsd"
+eval "$(zoxide init zsh)"
+
 EOF
 chown $SUDO_USER:$SUDO_USER /home/$SUDO_USER/.zshrc
 
