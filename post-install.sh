@@ -62,7 +62,7 @@ fi
 # 3. Install AUR packages as user
 # ---------------------------
 echo "[INFO] Checking AUR packages..."
-aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome" "1password" "plymouth-theme-loader-2-git")
+aur_packages=("visual-studio-code-bin" "goxlr-utility" "google-chrome" "1password" "plymouth-theme-loader-2-git" "waydroid")
 packages_to_install=()
 
 for package in "${aur_packages[@]}"; do
@@ -120,22 +120,6 @@ for plugin in "${!zsh_plugins[@]}"; do
     fi
 done
 
-# Configure .zshrc (always update to ensure latest config)
-echo "[INFO] Updating .zshrc configuration..."
-cat > /home/$SUDO_USER/.zshrc << 'EOF'
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting zsh-autocomplete)
-source $ZSH/oh-my-zsh.sh
-
-alias cat="bat"
-alias cd="z"
-alias cl="clear"
-alias ls="lsd"
-eval "$(zoxide init zsh)"
-
-EOF
-chown $SUDO_USER:$SUDO_USER /home/$SUDO_USER/.zshrc
 
 # ---------------------------
 # 5. PAM config for hyprlock
@@ -247,6 +231,8 @@ sudo -u "$SUDO_USER" mkdir -p "$config_dir"
 
 # Copy configs
 sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.config/"* "$config_dir/"
+sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.p10k.zsh" /home/$SUDO_USER/
+sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.zshrc" /home/$SUDO_USER/
 
 # Clean up
 rm -rf "$temp_repo_dir"
