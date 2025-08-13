@@ -95,7 +95,7 @@ install_base_system() {
              ttf-jetbrains-mono-nerd pavucontrol playerctl brightnessctl grim slurp \
              wl-clipboard papirus-icon-theme lsd blueman jq fzf \
              zoxide bat usbutils fprintd gtk-engine-murrine cantarell-fonts plymouth lzip \
-             seahorse gnome-keyring libsecret libnewt uwsm
+             seahorse gnome-keyring libsecret libnewt uwsm qt5-wayland qt6-wayland
 }
 
 generate_fstab() {
@@ -168,7 +168,7 @@ main() {
         title   Arch Linux
         linux   /vmlinuz-linux-zen
         initrd  /initramfs-linux-zen.img
-        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
+        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash nr_ttys=1 loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
         EOL
 
         # Configure boot loader
@@ -178,6 +178,15 @@ main() {
         console-mode max
         editor  no
         EOL
+
+        # Configure autologin
+        mkdir -p /etc/systemd/system/getty@tty1.service.d
+        cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf << EOL
+        [Service]
+        ExecStart=
+        ExecStart=-/sbin/agetty --autologin $USERNAME --noclear %I $TERM
+        EOL
+        systemctl enable getty@tty1.service
     "
 
     download_post_install_script

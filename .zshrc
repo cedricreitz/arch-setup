@@ -22,7 +22,7 @@ zstyle ':omz:update' mode auto      # update automatically without asking
 # CASE_SENSITIVE="true"
 # HYPHEN_INSENSITIVE="true"
 ENABLE_CORRECTION="true"
-plugins=(git)
+plugins=(git zsh-autocomplete zsh-autosuggestions zsh-syntax-highlighting)
 source $ZSH/oh-my-zsh.sh
 
 alias cat="bat"
