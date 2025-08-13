@@ -145,49 +145,49 @@ main() {
 
     # Create minimal user + root config so post-install can run
     arch-chroot /mnt /bin/bash -c "
-        ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-        hwclock --systohc
-        echo \"$LOCALE.UTF-8 UTF-8\" >> /etc/locale.gen
-        locale-gen
-        echo \"LANG=$LOCALE.UTF-8\" > /etc/locale.conf
-        echo \"KEYMAP=$KEYMAP\" > /etc/vconsole.conf
-        echo \"$HOSTNAME\" > /etc/hostname
-        echo \"root:$PASSWORD\" | chpasswd
-        useradd -m -G wheel,audio,video,optical,storage -s /bin/zsh \"$USERNAME\"
-        echo \"$USERNAME:$PASSWORD\" | chpasswd
-        sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-        systemctl enable NetworkManager
+ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+hwclock --systohc
+echo \"$LOCALE.UTF-8 UTF-8\" >> /etc/locale.gen
+locale-gen
+echo \"LANG=$LOCALE.UTF-8\" > /etc/locale.conf
+echo \"KEYMAP=$KEYMAP\" > /etc/vconsole.conf
+echo \"$HOSTNAME\" > /etc/hostname
+echo \"root:$PASSWORD\" | chpasswd
+useradd -m -G wheel,audio,video,optical,storage -s /bin/zsh \"$USERNAME\"
+echo \"$USERNAME:$PASSWORD\" | chpasswd
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+systemctl enable NetworkManager
 
-        # Add encrypt hook to mkinitcpio
-        sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block plymouth encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-        mkinitcpio -P
-        bootctl install
+# Add encrypt hook to mkinitcpio
+sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block plymouth encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+mkinitcpio -P
+bootctl install
 
-        # Create boot entry
-        cat > /boot/loader/entries/arch.conf << EOL
-        title   Arch Linux
-        linux   /vmlinuz-linux-zen
-        initrd  /initramfs-linux-zen.img
-        options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash nr_ttys=1 loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
-        EOL
+# Create boot entry
+cat > /boot/loader/entries/arch.conf <<- BOOTENTRY
+title   Arch Linux
+linux   /vmlinuz-linux-zen
+initrd  /initramfs-linux-zen.img
+options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash nr_ttys=1 loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
+BOOTENTRY
 
-        # Configure boot loader
-        cat > /boot/loader/loader.conf << EOL
-        default arch
-        timeout 3
-        console-mode max
-        editor  no
-        EOL
+# Configure boot loader
+cat > /boot/loader/loader.conf <<- BOOTCONF
+default arch
+timeout 3
+console-mode max
+editor  no
+BOOTCONF
 
-        # Configure autologin
-        mkdir -p /etc/systemd/system/getty@tty1.service.d
-        cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf << EOL
-        [Service]
-        ExecStart=
-        ExecStart=-/sbin/agetty --autologin $USERNAME --noclear %I $TERM
-        EOL
-        systemctl enable getty@tty1.service
-    "
+# Configure autologin
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf <<- AUTOLOGIN
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $USERNAME --noclear %I $TERM
+AUTOLOGIN
+systemctl enable getty@tty1.service
+"
 
     download_post_install_script
 
