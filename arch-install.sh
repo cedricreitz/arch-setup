@@ -142,7 +142,8 @@ main() {
     UUID_CRYPT=$(blkid -s UUID -o value "$CRYPT_PART")
     ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
     CATPUCCIN_TTY="vt.default_red=30,243,166,249,137,245,148,186,88,243,166,249,137,245,148,166 vt.default_grn=30,139,227,226,180,194,226,194,91,139,227,226,180,194,226,173 vt.default_blu=46,168,161,175,250,231,213,222,112,168,161,175,250,231,213,200"
-
+    LENOVO_SPEKAER_SETTINGS="snd_hda_intel.dmic_detect=0 snd_intel_dspcfg.dsp_driver=1"
+    WAYDROID_SETTINGS="binder.devices=binder,hwbinder,vndbinder"
     # Create minimal user + root config so post-install can run
     arch-chroot /mnt /bin/bash -c "
 ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
@@ -168,7 +169,7 @@ cat > /boot/loader/entries/arch.conf <<- BOOTENTRY
 title   Arch Linux
 linux   /vmlinuz-linux-zen
 initrd  /initramfs-linux-zen.img
-options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet splash nr_ttys=1 loglevel=3 acpi.debug_level=0 $CATPUCCIN_TTY
+options cryptdevice=UUID=$UUID_CRYPT:cryptroot root=UUID=$ROOT_UUID rw quiet reboot=bios splash nr_ttys=1 loglevel=3 acpi.debug_level=0 $WAYDROID_SETTINGS $LENOVO_SPEKAER_SETTINGS $CATPUCCIN_TTY
 BOOTENTRY
 
 # Configure boot loader
@@ -181,12 +182,19 @@ BOOTCONF
 
 # Configure autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat >/etc/systemd/system/getty@tty1.service.d/autologin.conf <<- AUTOLOGIN
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<- AUTOLOGIN
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $USERNAME --noclear %I $TERM
 AUTOLOGIN
 systemctl enable getty@tty1.service
+
+# Configure audio for Lenovo P14S Gen1
+mkdir -p /etc/modprobe.d
+cat > /etc/modprobe.d/alsa-base.conf <<- AUDIOCONF
+options snd-hda-intel dmic_detect=0
+options snd-hda-intel power_save=0
+AUDIOCONF
 "
 
     download_post_install_script
