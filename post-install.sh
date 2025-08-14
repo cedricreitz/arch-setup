@@ -158,6 +158,7 @@ sudo -u "$SUDO_USER" mkdir -p "$config_dir"
 sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.config/"* "$config_dir/"
 sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.p10k.zsh" /home/$SUDO_USER/
 sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.zshrc" /home/$SUDO_USER/
+sudo -u "$SUDO_USER" cp -r "$temp_repo_dir/.vscode/argv.json" /home/$SUDO_USER/.vscode/
 
 # Clean up
 rm -rf "$temp_repo_dir"
@@ -169,7 +170,7 @@ sudo -u "$SUDO_USER" git clone https://github.com/vinceliuice/Graphite-gtk-theme
 cd Graphite-gtk-theme && \
 chmod +x install.sh && \
 ./install.sh
-
+rm -rf /home/$SUDO_USER/Graphite-gtk-theme
 
 plymouth-set-default-theme -R loader_2
 
