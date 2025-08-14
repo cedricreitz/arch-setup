@@ -180,4 +180,6 @@ prompt_input "Github email" GITHUB_EMAIL
 sudo -u "$SUDO_USER" git config --global user.email $GITHUB_EMAIL
 sudo -u "$SUDO_USER" git config --global user.name $GITHUB_USER
 
+echo "Setting up Fingerprint"
+sudo -u "$SUDO_USER" fprintd-enroll
 echo "[SUCCESS] Post-install setup completed!"
