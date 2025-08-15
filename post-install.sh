@@ -166,8 +166,14 @@ echo "Setting up Fingerprint"
 sudo -u "$SUDO_USER" fprintd-enroll
 
 echo "Setting up waydroid"
-waydroid init -s GAPPS
-systemd waydroid-container.service
+waydroid init -s
+systemd enable --now waydroid-container.service
+
+sudo -u "$SUDO_USER" git clone https://github.com/casualsnek/waydroid_script && \
+cd waydroid_script && \
+python3 -m venv venv && \
+venv/bin/pip install -r requirements.txt && \
+sudo venv/bin/python3 main.py gapps libhoudini widevine
 waydroid session start
 ANDROID_ID=$(waydroid shell sqlite3 /data/data/com.google.android.gsf/databases/gservices.db "select value from main where name='android_id';")
 sudo -u "$SUDO_USER" echo "$ANDROID_ID" > "/home/$SUDO_USER/android_id.txt"
