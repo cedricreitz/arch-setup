@@ -95,7 +95,8 @@ install_base_system() {
              ttf-jetbrains-mono-nerd pavucontrol playerctl brightnessctl grim slurp \
              wl-clipboard papirus-icon-theme lsd blueman jq fzf \
              zoxide bat usbutils fprintd gtk-engine-murrine cantarell-fonts plymouth lzip \
-             seahorse gnome-keyring libsecret libnewt uwsm qt5-wayland qt6-wayland
+             seahorse gnome-keyring libsecret libnewt uwsm qt5-wayland qt6-wayland \
+             xdg-desktop-portal-hyprland bluez
 }
 
 generate_fstab() {
@@ -195,6 +196,8 @@ cat > /etc/modprobe.d/alsa-base.conf <<- AUDIOCONF
 options snd-hda-intel dmic_detect=0
 options snd-hda-intel power_save=0
 AUDIOCONF
+
+systemctl enable bluetooth.service
 "
 
     download_post_install_script

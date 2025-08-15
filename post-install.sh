@@ -102,7 +102,6 @@ fi
 declare -A zsh_plugins=(
     ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions"
     ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting.git"
-    ["zsh-autocomplete"]="https://github.com/marlonrichert/zsh-autocomplete.git"
 )
 
 for plugin in "${!zsh_plugins[@]}"; do
@@ -118,23 +117,6 @@ for plugin in "${!zsh_plugins[@]}"; do
         echo "[SKIP] Zsh plugin $plugin is already installed"
     fi
 done
-
-
-# ---------------------------
-# PAM config for hyprlock
-# ---------------------------
-if [[ ! -f "/etc/pam.d/hyprlock" ]]; then
-    echo "[INFO] Configuring PAM for hyprlock..."
-    cat << 'PAMCONF' > /etc/pam.d/hyprlock
-#%PAM-1.0
-auth     include   login
-account  include   login
-password include   login
-session  include   login
-PAMCONF
-else
-    echo "[SKIP] PAM configuration for hyprlock already exists"
-fi
 
 # ---------------------------
 # Copy user configs from GitHub
@@ -182,4 +164,13 @@ sudo -u "$SUDO_USER" git config --global user.name $GITHUB_USER
 
 echo "Setting up Fingerprint"
 sudo -u "$SUDO_USER" fprintd-enroll
+
+echo "Setting up waydroid"
+waydroid init -s GAPPS
+systemd waydroid-container.service
+waydroid session start
+ANDROID_ID=$(waydroid shell sqlite3 /data/data/com.google.android.gsf/databases/gservices.db "select value from main where name='android_id';")
+sudo -u "$SUDO_USER" echo "$ANDROID_ID" > "/home/$SUDO_USER/android_id.txt"
+echo "Saved Android ID to ~/android_id.txt. Register under this link: https://www.google.com/android/uncertified"
+waydroid session stop
 echo "[SUCCESS] Post-install setup completed!"
